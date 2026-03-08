@@ -2,14 +2,14 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Freedom Badminton Cup #10 Live Scoreboard</title>
     <style>
         :root {
             --primary-color: #2e7d32;
             --secondary-color: #1976d2;
             --accent-color: #f57c00;
-            --bg-color: #f8f9fa;
+            --bg-color: #f0f2f5;
             --card-bg: #ffffff;
             --text-color: #333333;
             --border-color: #dee2e6;
@@ -19,60 +19,72 @@
             background-color: var(--bg-color); 
             color: var(--text-color); 
             margin: 0; 
-            padding: 20px; 
+            padding: 10px; 
+            -webkit-tap-highlight-color: transparent;
         }
         .container { max-width: 1100px; margin: auto; }
         
         .header {
             background: linear-gradient(135deg, #4CAF50, #2E7D32);
             color: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
             position: relative;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .heartbeat {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 10px;
-            height: 10px;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
             background-color: #00ff00;
             border-radius: 50%;
             display: none;
+            box-shadow: 0 0 5px #00ff00;
         }
 
-        h1 { margin: 0; font-size: 1.8em; }
+        h1 { margin: 0; font-size: 1.4em; flex: 1; min-width: 200px; }
+        .header-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
         .latest-match-card {
             background-color: #fff3e0;
-            border-left: 8px solid var(--accent-color);
-            padding: 20px;
+            border-left: 6px solid var(--accent-color);
+            padding: 15px;
             border-radius: 10px;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .latest-match-info { text-align: left; }
-        .latest-match-label { font-size: 0.9em; color: #666; font-weight: bold; }
-        .latest-match-number { font-size: 2.5em; color: var(--accent-color); font-weight: bold; line-height: 1; }
+        .latest-match-label { font-size: 0.8em; color: #666; font-weight: bold; text-transform: uppercase; }
+        .latest-match-number { font-size: 2.2em; color: var(--accent-color); font-weight: bold; line-height: 1; }
         
         .status-bar { 
-            font-size: 0.85em; 
-            color: #777; 
-            margin-bottom: 15px; 
+            font-size: 0.75em; 
+            color: #888; 
+            margin-bottom: 10px; 
             background: #fff;
-            padding: 8px;
+            padding: 6px 12px;
             border-radius: 20px;
             display: inline-block;
             border: 1px solid var(--border-color);
+        }
+
+        /* Responsive Table to Cards */
+        .match-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
         }
 
         table { 
@@ -82,132 +94,113 @@
             background-color: var(--card-bg); 
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             border: 1px solid var(--border-color);
         }
         th { 
-            background-color: #f1f3f5; 
+            background-color: #f8f9fa; 
             color: #495057; 
-            padding: 15px; 
+            padding: 12px; 
             text-align: center;
             font-weight: 600;
             border-bottom: 2px solid var(--border-color);
         }
         td { 
-            padding: 15px; 
+            padding: 12px; 
             border-bottom: 1px solid var(--border-color); 
             vertical-align: middle;
         }
-        tr:last-child td { border-bottom: none; }
-        tr:hover { background-color: #f8f9fa; }
 
         .court-badge {
             background-color: var(--secondary-color);
             color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
+            padding: 4px 10px;
+            border-radius: 8px;
             font-weight: bold;
             display: inline-block;
+            font-size: 0.9em;
         }
         .match-no { 
-            font-size: 1.2em;
+            font-size: 1.1em;
             color: var(--accent-color); 
             font-weight: bold; 
         }
         .vs-label {
             color: #d32f2f;
             font-weight: bold;
-            margin: 5px 0;
-            font-size: 0.8em;
+            margin: 4px 0;
+            font-size: 0.75em;
             display: block;
         }
         
+        /* Mobile Specific Styles */
+        @media screen and (max-width: 600px) {
+            h1 { font-size: 1.2em; }
+            .header { padding: 12px; border-radius: 0 0 12px 12px; margin: -10px -10px 15px -10px; }
+            .latest-match-card { padding: 12px; }
+            .latest-match-number { font-size: 1.8em; }
+            
+            /* Hide table headers on mobile */
+            thead { display: none; }
+            
+            /* Transform rows into cards */
+            tr { 
+                display: flex; 
+                flex-direction: column; 
+                padding: 12px; 
+                border-bottom: 8px solid var(--bg-color);
+                position: relative;
+            }
+            td { 
+                display: block; 
+                padding: 4px 0; 
+                border: none; 
+                text-align: left !important;
+            }
+            
+            /* Card Layout */
+            td:nth-child(1) { order: 1; margin-bottom: 5px; } /* Court */
+            td:nth-child(2) { position: absolute; top: 12px; right: 12px; order: 2; } /* Match No */
+            td:nth-child(3) { order: 3; border-bottom: 1px dashed #eee; padding-bottom: 8px; margin-bottom: 8px; } /* Type */
+            td:nth-child(4) { order: 4; font-size: 1.05em; } /* Teams */
+            
+            .vs-label { display: inline-block; margin: 0 10px; }
+            
+            .modal-content { width: 95% !important; margin: 10% auto !important; padding: 20px !important; }
+            .history-btn, .voice-toggle { padding: 6px 10px; font-size: 0.8em; }
+        }
+
+        /* Modal & UI Elements */
         .modal {
             display: none;
             position: fixed;
             z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.6);
-            backdrop-filter: blur(5px);
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
         }
         .modal-content {
             background-color: white;
-            margin: 10% auto;
-            padding: 30px;
-            border-radius: 25px;
-            width: 600px;
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
             text-align: center;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        @keyframes slideIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .modal-header {
-            color: var(--primary-color);
-            font-size: 1.6em;
-            font-weight: bold;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-        .modal-body {
-            font-size: 1.1em;
-            margin-bottom: 20px;
-            color: #333;
-            text-align: left;
-            max-height: 450px;
-            overflow-y: auto;
-        }
-        .update-item {
-            background-color: #ffffff;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            border: 1px solid #eee;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-        }
-        .update-item.calling { border-left: 6px solid var(--accent-color); background-color: #fffef2; }
-        .update-item.match { border-left: 6px solid var(--primary-color); background-color: #f9fff9; }
-        .update-label { font-size: 0.85em; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-        .update-label.calling { color: var(--accent-color); }
-        .update-label.match { color: var(--primary-color); }
-        .update-content { font-size: 1.1em; font-weight: bold; }
+        @keyframes slideIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-header { color: var(--primary-color); font-size: 1.4em; font-weight: bold; margin-bottom: 15px; }
+        .modal-body { font-size: 1.1em; margin-bottom: 20px; color: #333; text-align: left; max-height: 60vh; overflow-y: auto; }
+        .update-item { background: #f9f9f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 5px solid var(--primary-color); }
+        .update-item.calling { border-left-color: var(--accent-color); }
+        .btn-close { background-color: var(--primary-color); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; }
 
-        .btn-close {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 40px;
-            border-radius: 12px;
-            font-size: 1.1em;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-        }
-
-        .voice-toggle {
-            background-color: rgba(255,255,255,0.2);
-            border: 1px solid white;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
+        .voice-toggle { background-color: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 8px; cursor: pointer; padding: 8px 12px; }
         .voice-toggle.active { background-color: #fff; color: var(--primary-color); }
-        
-        .history-btn {
-            background-color: #f57c00;
-            border: 1px solid #f57c00;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 10px;
-            cursor: pointer;
-            margin-left: 10px;
-            font-weight: bold;
-        }
-        .history-btn:hover { background-color: #e65100; }
+        .history-btn { background-color: var(--accent-color); color: white; border: none; border-radius: 8px; cursor: pointer; padding: 8px 12px; font-weight: bold; }
 
         .pulse { animation: pulse-animation 2s infinite; }
         @keyframes pulse-animation { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
@@ -217,46 +210,45 @@
     <div class="container">
         <div class="header">
             <div id="heartbeat" class="heartbeat"></div>
-            <div>
-                <h1>🏆 Freedom Badminton Cup #10</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard (Live)</p>
-            </div>
-            <div>
-                <button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)</button>
-                <button class="history-btn" onclick="showHistoryModal()">📜 ดูประวัติการแจ้งเตือน</button>
+            <h1>🏆 Freedom Badminton #10</h1>
+            <div class="header-btns">
+                <button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เสียง: เปิด</button>
+                <button class="history-btn" onclick="showHistoryModal()">📜 ประวัติ</button>
             </div>
         </div>
 
         <div class="latest-match-card">
             <div class="latest-match-info">
-                <div class="latest-match-label">กำลังเรียกแมทช์ลำดับที่ (Current Calling)</div>
+                <div class="latest-match-label">เรียกแมทช์ลำดับที่</div>
                 <div id="latest-match-id" class="latest-match-number pulse">--</div>
             </div>
             <div style="text-align: right;">
-                <div class="status-bar" id="status-bar">กำลังโหลดข้อมูล...</div>
+                <div class="status-bar" id="status-bar">กำลังโหลด...</div>
             </div>
         </div>
         
         <div id="scoreboard-content">
-            <div style="margin: 50px; color: #999;">กำลังดึงข้อมูล...</div>
+            <div style="text-align:center; padding:50px; color:#999;">กำลังดึงข้อมูลการแข่งขัน...</div>
         </div>
     </div>
 
+    <!-- Modal Notifications -->
     <div id="updateModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">📢 แจ้งเตือนการอัปเดต</div>
+            <div class="modal-header">📢 รายการอัปเดตใหม่</div>
             <div class="modal-body" id="modal-updates-list"></div>
-            <button class="btn-close" onclick="closeModal()">ตกลง / ปิด</button>
+            <button class="btn-close" onclick="closeModal()">รับทราบ</button>
         </div>
     </div>
 
+    <!-- Modal History -->
     <div id="historyModal" class="modal">
-        <div class="modal-content" style="width: 800px; max-width: 90%;">
-            <div class="modal-header" style="color: #f57c00; border-bottom: 2px solid #f57c00;">📜 ประวัติการแจ้งเตือนทั้งหมด</div>
-            <div class="modal-body" id="history-content" style="background-color: #1e1e1e; color: #00ff00; padding: 20px; border-radius: 10px; font-family: monospace; font-size: 1em; white-space: pre-wrap; height: 400px; overflow-y: auto; text-align: left;">
-                กำลังโหลดประวัติ...
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header" style="color:var(--accent-color);">📜 ประวัติการแจ้งเตือน</div>
+            <div class="modal-body" id="history-content" style="background:#1e1e1e; color:#00ff00; padding:15px; border-radius:10px; font-family:monospace; font-size:0.9em; white-space:pre-wrap;">
+                กำลังโหลด...
             </div>
-            <button class="btn-close" style="background-color: #f57c00; margin-top: 20px;" onclick="closeHistoryModal()">ปิดหน้าต่าง</button>
+            <button class="btn-close" style="background:var(--accent-color); margin-top:15px;" onclick="closeHistoryModal()">ปิด</button>
         </div>
     </div>
 
@@ -271,173 +263,122 @@
         let autoCloseTimer = null;
 
         function toggleVoice() {
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                    voiceEnabled = true;
-                } else {
-                    voiceEnabled = !voiceEnabled;
-                }
-
-                const btn = document.getElementById('voiceInitBtn');
-                btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
-                btn.classList.toggle('active', voiceEnabled);
-                
-                if (voiceEnabled) {
-                    playChime();
-                    announceCurrentStatus();
-                }
-            } catch(e) { console.error("Toggle voice error", e); }
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            voiceEnabled = !voiceEnabled;
+            const btn = document.getElementById('voiceInitBtn');
+            btn.innerHTML = voiceEnabled ? "🔊 เสียง: เปิด" : "🔇 เสียง: ปิด";
+            btn.classList.toggle('active', voiceEnabled);
+            if (voiceEnabled) { playChime(); announceCurrentStatus(); }
         }
 
         function announceCurrentStatus() {
             const mRows = document.querySelectorAll('#scoreboard-content tr');
-            if (mRows.length < 2) {
-                speakAnnouncement("ระบบเสียงเปิดอยู่ค่ะ ขณะนี้ยังไม่มีข้อมูลแมทช์ในสนาม");
-                return;
-            }
-            
             let latestM = null, maxM = -1;
             Array.from(mRows).slice(1).forEach(r => {
-                const nSpan = r.querySelector('.match-no');
-                if (nSpan) {
-                    const n = parseInt(nSpan.innerText);
-                    if (!isNaN(n) && n > maxM) { 
-                        maxM = n; 
-                        const cBadge = r.querySelector('.court-badge');
-                        latestM = {n, c: cBadge ? cBadge.innerText : ''}; 
-                    }
+                const n = parseInt(r.querySelector('.match-no').innerText);
+                if (!isNaN(n) && n > maxM) { 
+                    maxM = n; 
+                    latestM = {n, c: r.querySelector('.court-badge').innerText}; 
                 }
             });
-            
             let txt = `ระบบเสียงเปิดอยู่ค่ะ `;
-            if (latestM) txt += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestM.n} ที่ ${latestM.c.replace('Court ', 'สนาม ')} ค่ะ`;
+            if (latestM) txt += `แมทช์ล่าสุดคือแมทช์ที่ ${latestM.n} ที่ ${latestM.c.replace('Court ', 'สนาม ')} ค่ะ`;
             setTimeout(() => speakAnnouncement(txt), 800);
         }
 
         function playChime() {
             if (!voiceEnabled || !audioCtx) return;
-            try {
-                const now = audioCtx.currentTime;
-                [659, 523].forEach((f, i) => {
-                    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-                    osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
-                    gain.gain.setValueAtTime(0, now + i*0.3);
-                    gain.gain.linearRampToValueAtTime(0.15, now + i*0.3 + 0.05);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
-                });
-            } catch(e) {}
+            const now = audioCtx.currentTime;
+            [659, 523].forEach((f, i) => {
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
+                gain.gain.setValueAtTime(0, now + i*0.3);
+                gain.gain.linearRampToValueAtTime(0.1, now + i*0.3 + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
+            });
         }
 
         function speakAnnouncement(text) {
             if (!voiceEnabled || !window.speechSynthesis) return;
-            try {
-                window.speechSynthesis.cancel();
-                const msg = new SpeechSynthesisUtterance(text);
-                msg.lang = 'th-TH'; msg.rate = 1.0;
-                window.speechSynthesis.speak(msg);
-            } catch(e) {}
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'th-TH'; msg.rate = 1.0;
+            window.speechSynthesis.speak(msg);
         }
 
         async function fetchScoreboard() {
             const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${Date.now()}`;
-            
             try {
-                const controller = new AbortController();
-                const tid = setTimeout(() => controller.abort(), 10000);
-                const response = await fetch(URL, { signal: controller.signal });
-                clearTimeout(tid);
-                
-                if (!response.ok) throw new Error('Response error');
+                const response = await fetch(URL);
                 const data = await response.text();
-                
                 const hb = document.getElementById('heartbeat');
-                hb.style.display = 'block';
-                setTimeout(() => hb.style.display = 'none', 500);
-
+                hb.style.display = 'block'; setTimeout(() => hb.style.display = 'none', 500);
                 parseCSV(data);
                 document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()}`;
-            } catch (e) { 
-                document.getElementById('status-bar').innerText = `กำลังเชื่อมต่อใหม่... (${new Date().toLocaleTimeString()})`;
-            }
+            } catch (e) { document.getElementById('status-bar').innerText = `ขัดข้อง กำลังลองใหม่...`; }
         }
 
         function parseCSV(csvText) {
             if (!csvText || csvText.length < 20) return;
+            const rows = csvText.split('\n').map(row => row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim()));
             
-            try {
-                const rows = csvText.split('\n').map(row => 
-                    row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim())
-                );
+            let currentCalling = null;
+            const callingRow = rows.find(r => r.some(c => c && c.includes('Match No. calling now')));
+            if (callingRow) {
+                const val = callingRow.find(c => c !== '' && !isNaN(parseInt(c)));
+                if (val) currentCalling = parseInt(val);
+            }
 
-                let currentCalling = null;
-                const callingRow = rows.find(r => r.some(c => c && c.includes('Match No. calling now')));
-                if (callingRow) {
-                    const val = callingRow.find(c => c !== '' && !isNaN(parseInt(c)));
-                    if (val) currentCalling = parseInt(val);
-                }
-
-                let currentMatches = [];
-                let currentMatchMap = new Map();
-                for (let i = 0; i < rows.length; i++) {
-                    if (rows[i].some(c => c && c.includes('Court'))) {
-                        const court = rows[i].find(c => c && c.includes('Court'));
-                        const dataRow = rows[i+2];
-                        if (dataRow && dataRow.length > 7 && dataRow[2] && !isNaN(parseInt(dataRow[2]))) {
-                            const mNo = dataRow[2], t1 = dataRow[3], t2 = dataRow[7], p1 = dataRow[4]||'', p2 = dataRow[8]||'';
-                            currentMatches.push({court, mNo, t1, t2, p1, p2, type: rows[i][3]||'', round: `${rows[i][4]||''} ${rows[i][5]||''}`});
-                            currentMatchMap.set(court, mNo);
-                        }
+            let currentMatches = [], currentMatchMap = new Map();
+            rows.forEach((row, i) => {
+                if (row.some(c => c && c.includes('Court'))) {
+                    const court = row.find(c => c && c.includes('Court'));
+                    const dataRow = rows[i+2];
+                    if (dataRow && dataRow[2] && !isNaN(parseInt(dataRow[2]))) {
+                        const mNo = dataRow[2], t1 = dataRow[3], t2 = dataRow[7], p1 = dataRow[4]||'', p2 = dataRow[8]||'';
+                        currentMatches.push({court, mNo, t1, t2, p1, p2, type: row[3]||'', round: `${row[4]||''} ${row[5]||''}`});
+                        currentMatchMap.set(court, mNo);
                     }
                 }
-
-                if (lastCalling !== null) {
-                    let updates = [];
-                    let ttsParts = ["แจ้งเตือนค่ะ"];
-
-                    if (currentCalling > lastCalling) {
-                        const range = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} ถึง ${currentCalling}`;
-                        updates.push({ type: 'calling', content: `เรียกแมทช์ใหม่ลำดับที่: ${range.replace('ถึง', '-')}` });
-                        ttsParts.push(`มีการเรียกแมทช์ใหม่ลำดับที่ ${range}`);
-                    }
-
-                    currentMatchMap.forEach((mNo, court) => {
-                        if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
-                            const m = currentMatches.find(x => x.court === court);
-                            if (m) {
-                                updates.push({ type: 'match', content: `เริ่มแข่ง ${m.court}: M${m.mNo} <br><small>(${m.t1} vs ${m.t2})</small>` });
-                                ttsParts.push(`เริ่มแข่งใน ${m.court.replace('Court ', 'สนาม ')} แมทช์ที่ ${m.mNo} ระหว่างทีม ${m.t1} กับทีม ${m.t2}`);
-                            }
-                        }
-                    });
-
-                    if (updates.length > 0) handleNotification(updates, ttsParts.join(' '));
-                }
-
-                lastCalling = currentCalling;
-                lastMatchMap = currentMatchMap;
-                document.getElementById('latest-match-id').innerText = currentCalling || '--';
-                renderTable(currentMatches);
-            } catch(e) { console.error("Parse Error", e); }
-        }
-
-        function handleNotification(updates, ttsText) {
-            playChime();
-            const listContainer = document.getElementById('modal-updates-list');
-            listContainer.innerHTML = '';
-            updates.forEach(upd => {
-                const div = document.createElement('div');
-                div.className = `update-item ${upd.type}`;
-                div.innerHTML = `<div class="update-label ${upd.type}">${upd.type==='calling'?'📣 NEW CALLING':'📍 NEW MATCH STARTED'}</div><div class="update-content">${upd.content}</div>`;
-                listContainer.appendChild(div);
             });
-            setTimeout(() => speakAnnouncement(ttsText), 1000);
-            showModal();
+
+            if (lastCalling !== null) {
+                let updates = [], tts = ["แจ้งเตือนค่ะ"];
+                if (currentCalling > lastCalling) {
+                    const range = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} ถึง ${currentCalling}`;
+                    updates.push({type:'calling', content:`เรียกแมทช์ใหม่ลำดับที่: ${range.replace('ถึง','-')}`});
+                    tts.push(`มีการเรียกแมทช์ใหม่ลำดับที่ ${range}`);
+                }
+                currentMatchMap.forEach((mNo, court) => {
+                    if (lastMatchMap.get(court) !== mNo) {
+                        const m = currentMatches.find(x => x.court === court);
+                        if (m) {
+                            updates.push({type:'match', content:`เริ่มแข่ง ${m.court}: M${m.mNo} (${m.t1} vs ${m.t2})`});
+                            tts.push(`เริ่มแข่งใน ${m.court.replace('Court ','สนาม ')} แมทช์ที่ ${m.mNo} ระหว่างทีม ${m.t1} กับทีม ${m.t2}`);
+                        }
+                    }
+                });
+                if (updates.length > 0) {
+                    playChime();
+                    const list = document.getElementById('modal-updates-list');
+                    list.innerHTML = '';
+                    updates.forEach(upd => {
+                        const div = document.createElement('div');
+                        div.className = `update-item ${upd.type}`;
+                        div.innerHTML = `<strong>${upd.type==='calling'?'📣 NEW CALLING':'📍 NEW MATCH'}</strong><br>${upd.content}`;
+                        list.appendChild(div);
+                    });
+                    setTimeout(() => speakAnnouncement(tts.join(' ')), 1000);
+                    showModal();
+                }
+            }
+
+            lastCalling = currentCalling; lastMatchMap = currentMatchMap;
+            document.getElementById('latest-match-id').innerText = currentCalling || '--';
+            renderTable(currentMatches);
         }
 
         function renderTable(matches) {
@@ -448,34 +389,20 @@
             document.getElementById('scoreboard-content').innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
         }
 
-        function showModal() {
-            document.getElementById('updateModal').style.display = 'block';
-            if (autoCloseTimer) clearTimeout(autoCloseTimer);
-            autoCloseTimer = setTimeout(closeModal, 12000);
-        }
-
-        function closeModal() {
-            document.getElementById('updateModal').style.display = 'none';
-            if (autoCloseTimer) clearTimeout(autoCloseTimer);
-        }
-
+        function showModal() { document.getElementById('updateModal').style.display = 'block'; if (autoCloseTimer) clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(closeModal, 12000); }
+        function closeModal() { document.getElementById('updateModal').style.display = 'none'; if (autoCloseTimer) clearTimeout(autoCloseTimer); }
+        
         async function showHistoryModal() {
             document.getElementById('historyModal').style.display = 'block';
             try {
-                const response = await fetch(`history.log?t=${Date.now()}`);
-                if (!response.ok) throw new Error('Cannot load history');
-                const text = await response.text();
-                const contentDiv = document.getElementById('history-content');
-                contentDiv.textContent = text || 'ยังไม่มีประวัติการแจ้งเตือน';
-                contentDiv.scrollTop = contentDiv.scrollHeight;
-            } catch (e) {
-                document.getElementById('history-content').textContent = 'ไม่สามารถโหลดไฟล์ประวัติได้ (ระบบกำลังบันทึกข้อมูล)';
-            }
+                const res = await fetch(`history.log?t=${Date.now()}`);
+                const text = await res.text();
+                const div = document.getElementById('history-content');
+                div.textContent = text || 'ยังไม่มีประวัติ';
+                div.scrollTop = div.scrollHeight;
+            } catch (e) { document.getElementById('history-content').textContent = 'โหลดประวัติไม่สำเร็จ'; }
         }
-
-        function closeHistoryModal() {
-            document.getElementById('historyModal').style.display = 'none';
-        }
+        function closeHistoryModal() { document.getElementById('historyModal').style.display = 'none'; }
 
         fetchScoreboard();
         setInterval(fetchScoreboard, 2500);
