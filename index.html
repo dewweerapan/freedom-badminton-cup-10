@@ -122,10 +122,10 @@
         }
         .modal-content {
             background-color: white;
-            margin: 15% auto;
-            padding: 35px;
+            margin: 10% auto;
+            padding: 30px;
             border-radius: 25px;
-            width: 400px;
+            width: 500px;
             text-align: center;
             box-shadow: 0 15px 50px rgba(0,0,0,0.4);
             animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -138,34 +138,43 @@
             color: var(--primary-color);
             font-size: 1.6em;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .modal-body {
-            font-size: 1.2em;
-            margin-bottom: 25px;
+            font-size: 1.1em;
+            margin-bottom: 20px;
             color: #333;
+            text-align: left;
         }
-        .highlight-number {
-            font-size: 3em;
+        .highlight-range {
+            font-size: 2.2em;
             color: var(--accent-color);
             font-weight: bold;
             display: block;
+            text-align: center;
             margin: 10px 0;
+            border-bottom: 2px dashed #eee;
+            padding-bottom: 10px;
+        }
+        .new-match-item {
+            background-color: #f1f8e9;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.95em;
         }
         .btn-close {
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 15px 40px;
+            padding: 12px 40px;
             border-radius: 12px;
             font-size: 1.1em;
             cursor: pointer;
             font-weight: bold;
-            transition: transform 0.2s, background 0.2s;
-        }
-        .btn-close:hover {
-            background-color: #1b5e20;
-            transform: scale(1.05);
+            width: 100%;
+            margin-top: 10px;
         }
 
         .voice-toggle {
@@ -175,7 +184,6 @@
             padding: 8px 15px;
             border-radius: 10px;
             cursor: pointer;
-            font-size: 0.9em;
         }
         .voice-toggle.active { background-color: #fff; color: var(--primary-color); }
 
@@ -188,9 +196,9 @@
         <div class="header">
             <div>
                 <h1>🏆 Freedom Badminton Cup #10</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Live Scoreboard</p>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">ระบบติดตามผลการแข่งขัน Live</p>
             </div>
-            <button id="voiceInitBtn" class="voice-toggle" onclick="toggleVoice()">🔇 ปิดเสียง (คลิกเพื่อเปิด)</button>
+            <button id="voiceInitBtn" class="voice-toggle" onclick="toggleVoice()">🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน</button>
         </div>
 
         <div class="latest-match-card">
@@ -204,16 +212,22 @@
         </div>
         
         <div id="scoreboard-content">
-            <div style="margin: 50px; color: #999;">กำลังเตรียมความพร้อม...</div>
+            <div style="margin: 50px; color: #999;">กำลังดึงข้อมูล...</div>
         </div>
     </div>
 
+    <!-- Modal แจ้งเตือนอัจฉริยะ -->
     <div id="updateModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">📢 ข้อมูลมีการเปลี่ยนแปลง!</div>
             <div class="modal-body">
-                แมทช์ล่าสุดที่กำลังเรียกคือ
-                <span id="modal-match-no" class="highlight-number">--</span>
+                <div style="text-align:center; color:#666; font-size:0.9em;">ลำดับแมทช์ที่เรียก:</div>
+                <span id="modal-match-range" class="highlight-range">--</span>
+                
+                <div id="new-matches-section" style="display:none;">
+                    <div style="font-weight:bold; margin-bottom:10px; color:#2e7d32;">📍 แมทช์ที่เริ่มใหม่ในสนาม:</div>
+                    <div id="new-matches-list"></div>
+                </div>
             </div>
             <button class="btn-close" onclick="closeModal()">รับทราบ</button>
         </div>
@@ -224,52 +238,71 @@
         const SHEET_NAME = 'Monitoring';
         const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
 
-        let lastFingerprint = null;
+        let lastCalling = null;
+        let lastMatchMap = new Map(); // Court -> MatchNo
         let voiceEnabled = false;
         let audioCtx = null;
+        let autoCloseTimer = null;
 
         function toggleVoice() {
             voiceEnabled = !voiceEnabled;
             const btn = document.getElementById('voiceInitBtn');
-            btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว" : "🔇 ปิดเสียง (คลิกเพื่อเปิด)";
+            btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
             btn.classList.toggle('active', voiceEnabled);
             
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
             if (voiceEnabled) {
                 playChime();
-                setTimeout(() => speakAnnouncement("-- (ทดสอบระบบ)"), 800);
+                
+                const currentCalling = document.getElementById('latest-match-id').innerText;
+                
+                // ค้นหาแมทช์ที่มีเลขสูงสุดในตาราง (แมทช์ที่ลงสนามล่าสุด)
+                const matchRows = Array.from(document.querySelectorAll('#scoreboard-content tr')).slice(1);
+                let latestMatchInTable = null;
+                let maxMNo = -1;
+
+                matchRows.forEach(row => {
+                    const mNo = parseInt(row.querySelector('.match-no').innerText);
+                    if (mNo > maxMNo) {
+                        maxMNo = mNo;
+                        latestMatchInTable = {
+                            no: mNo,
+                            court: row.querySelector('.court-badge').innerText
+                        };
+                    }
+                });
+                
+                let testText = `เปิดระบบเสียงเรียบร้อยค่ะ `;
+                if (latestMatchInTable) {
+                    testText += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestMatchInTable.no} ที่ ${latestMatchInTable.court.replace('Court ', 'สนาม ')} ค่ะ`;
+                } else {
+                    testText += `ขณะนี้ยังไม่มีแมทช์กำลังแข่งขันค่ะ`;
+                }
+                
+                setTimeout(() => speakAnnouncement(testText), 800);
             }
         }
 
         function playChime() {
             if (!voiceEnabled || !audioCtx) return;
-            
-            function createNote(freq, startTime, duration) {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = "triangle";
-                osc.frequency.setValueAtTime(freq, startTime);
-                gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(startTime);
-                osc.stop(startTime + duration);
-            }
-
             const now = audioCtx.currentTime;
-            createNote(659.25, now, 0.5); // E5
-            createNote(523.25, now + 0.3, 0.7); // C5
+            [659, 523].forEach((f, i) => {
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
+                gain.gain.setValueAtTime(0, now + i*0.3);
+                gain.gain.linearRampToValueAtTime(0.2, now + i*0.3 + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
+            });
         }
 
-        function speakAnnouncement(matchNo) {
+        function speakAnnouncement(text) {
             if (!voiceEnabled) return;
             window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance();
-            msg.text = `มีการอัปเดตข้อมูลค่ะ แมทช์ล่าสุดคือลำดับที่ ${matchNo}`;
-            msg.lang = 'th-TH';
-            msg.rate = 0.9;
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'th-TH'; msg.rate = 1.0;
             window.speechSynthesis.speak(msg);
         }
 
@@ -278,60 +311,115 @@
                 const response = await fetch(URL);
                 const data = await response.text();
                 parseCSV(data);
-                document.getElementById('status-bar').innerText = `เช็คข้อมูลทุก 5 วินาที | อัปเดตล่าสุด: ${new Date().toLocaleTimeString()}`;
-            } catch (error) { console.error('Fetch error:', error); }
+                document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()} (เช็คทุก 5 วินาที)`;
+            } catch (e) { console.error(e); }
         }
 
         function parseCSV(csvText) {
-            const rows = csvText.split('\n').map(row => {
-                return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim());
-            });
+            const rows = csvText.split('\n').map(row => 
+                row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim())
+            );
 
-            const currentFingerprint = csvText.split('\n').slice(0, 35).join('|');
-            
-            let callingNow = '--';
+            // 1. ดึงเลขที่เรียกปัจจุบัน
+            let currentCalling = null;
             const callingRow = rows.find(r => r.some(c => c.includes('Match No. calling now')));
             if (callingRow) {
-                const value = callingRow.find(c => c !== '' && !isNaN(parseInt(c)));
-                if (value) callingNow = value;
+                const val = callingRow.find(c => c !== '' && !isNaN(parseInt(c)));
+                if (val) currentCalling = parseInt(val);
             }
 
-            if (lastFingerprint !== null && lastFingerprint !== currentFingerprint) {
-                playChime();
-                setTimeout(() => speakAnnouncement(callingNow), 1000);
-                showModal(callingNow);
-            }
-            lastFingerprint = currentFingerprint;
-            document.getElementById('latest-match-id').innerText = callingNow;
-
-            let html = '<table><thead><tr><th>สนาม</th><th>แมทช์</th><th>ประเภท/รอบ</th><th>การแข่งขัน</th></tr></thead><tbody>';
-            let foundData = false;
+            // 2. ดึงแมทช์ในสนามปัจจุบัน
+            let currentMatches = [];
+            let currentMatchMap = new Map();
             for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                if (row.some(cell => cell && cell.includes('Court'))) {
-                    const court = row.find(cell => cell.includes('Court'));
-                    const matchType = rows[i][3] || '';
-                    const round = rows[i][4] || '';
-                    const group = rows[i][5] || '';
-                    const dataRow = rows[i+2]; 
+                if (rows[i].some(c => c.includes('Court'))) {
+                    const court = rows[i].find(c => c.includes('Court'));
+                    const dataRow = rows[i+2];
                     if (dataRow && dataRow[2] && !isNaN(parseInt(dataRow[2]))) {
-                        const mNo = dataRow[2], t1 = dataRow[3], p1 = dataRow[4], t2 = dataRow[7], p2 = dataRow[8];
-                        html += `<tr><td align="center"><span class="court-badge">${court}</span></td><td align="center" class="match-no">${mNo}</td><td align="center"><strong>${matchType}</strong><br><small>${round} ${group}</small></td><td><strong>${t1}</strong> <small>${p1}</small><span class="vs-label">VS</span><strong>${t2}</strong> <small>${p2}</small></td></tr>`;
-                        foundData = true;
+                        const mNo = dataRow[2], t1 = dataRow[3], t2 = dataRow[7], p1 = dataRow[4], p2 = dataRow[8];
+                        currentMatches.push({court, mNo, t1, t2, p1, p2, type: rows[i][3], round: `${rows[i][4]} ${rows[i][5]}`});
+                        currentMatchMap.set(court, mNo);
                     }
                 }
             }
-            html += '</tbody></table>';
-            document.getElementById('scoreboard-content').innerHTML = foundData ? html : `<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>`;
+
+            // 3. ตรวจสอบการเปลี่ยนแปลง
+            let isSignificantChange = false;
+            let newCallingRange = "";
+            let newlyStarted = [];
+
+            if (lastCalling !== null) {
+                if (currentCalling > lastCalling) {
+                    isSignificantChange = true;
+                    newCallingRange = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} - ${currentCalling}`;
+                }
+                
+                currentMatchMap.forEach((mNo, court) => {
+                    if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
+                        const matchInfo = currentMatches.find(m => m.court === court);
+                        if (matchInfo) {
+                            newlyStarted.push(matchInfo);
+                            isSignificantChange = true;
+                        }
+                    }
+                });
+            }
+
+            if (isSignificantChange) {
+                handleNotification(newCallingRange, newlyStarted);
+            }
+
+            // อัปเดตสถานะล่าสุด
+            lastCalling = currentCalling;
+            lastMatchMap = currentMatchMap;
+            document.getElementById('latest-match-id').innerText = currentCalling || '--';
+
+            // วาดตาราง
+            renderTable(currentMatches);
         }
 
-        let autoCloseTimer = null;
-
-        function showModal(matchNo) {
-            document.getElementById('modal-match-no').innerText = matchNo;
-            document.getElementById('updateModal').style.display = 'block';
+        function handleNotification(range, newMatches) {
+            playChime();
             
-            // ตั้งเวลาปิดอัตโนมัติหลังจาก 5 วินาที
+            let modalRange = range || `${lastCalling}`;
+            let ttsText = `แจ้งเตือนค่ะ `;
+            if (range) ttsText += `มีการเรียกแมทช์ใหม่ลำดับที่ ${range.replace('-', 'ถึง')} `;
+            
+            const listContainer = document.getElementById('new-matches-list');
+            const section = document.getElementById('new-matches-section');
+            listContainer.innerHTML = '';
+            
+            if (newMatches.length > 0) {
+                section.style.display = 'block';
+                ttsText += `และเริ่มแข่งในสนาม `;
+                newMatches.forEach((m, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'new-match-item';
+                    div.innerHTML = `<strong>${m.court}</strong>: M${m.mNo} (${m.t1} vs ${m.t2})`;
+                    listContainer.appendChild(div);
+                    ttsText += `${m.court.replace('Court ', '')} `;
+                });
+                ttsText += `ค่ะ`;
+            } else {
+                section.style.display = 'none';
+                ttsText += `ค่ะ`;
+            }
+
+            document.getElementById('modal-match-range').innerText = modalRange;
+            setTimeout(() => speakAnnouncement(ttsText), 1000);
+            showModal();
+        }
+
+        function renderTable(matches) {
+            let html = '<table><thead><tr><th>สนาม</th><th>แมทช์</th><th>ประเภท/รอบ</th><th>การแข่งขัน</th></tr></thead><tbody>';
+            matches.forEach(m => {
+                html += `<tr><td align="center"><span class="court-badge">${m.court}</span></td><td align="center" class="match-no">${m.mNo}</td><td align="center"><strong>${m.type}</strong><br><small>${m.round}</small></td><td><strong>${m.t1}</strong> <small>${m.p1}</small><span class="vs-label">VS</span><strong>${m.t2}</strong> <small>${m.p2}</small></td></tr>`;
+            });
+            document.getElementById('scoreboard-content').innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
+        }
+
+        function showModal() {
+            document.getElementById('updateModal').style.display = 'block';
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
             autoCloseTimer = setTimeout(closeModal, 5000);
         }
