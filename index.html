@@ -36,7 +36,6 @@
             position: relative;
         }
         
-        /* Heartbeat Indicator */
         .heartbeat {
             position: absolute;
             top: 10px;
@@ -47,7 +46,6 @@
             border-radius: 50%;
             display: none;
         }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
 
         h1 { margin: 0; font-size: 1.8em; }
 
@@ -211,7 +209,6 @@
         }
         .history-btn:hover { background-color: #e65100; }
 
-
         .pulse { animation: pulse-animation 2s infinite; }
         @keyframes pulse-animation { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
@@ -224,7 +221,10 @@
                 <h1>🏆 Freedom Badminton Cup #10</h1>
                 <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard (Live)</p>
             </div>
-            <div><button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)</button><button class="history-btn" onclick="showHistoryModal()">📜 ดูประวัติการแจ้งเตือน</button></div>
+            <div>
+                <button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)</button>
+                <button class="history-btn" onclick="showHistoryModal()">📜 ดูประวัติการแจ้งเตือน</button>
+            </div>
         </div>
 
         <div class="latest-match-card">
@@ -250,7 +250,6 @@
         </div>
     </div>
 
-    <!-- Modal ดูประวัติ -->
     <div id="historyModal" class="modal">
         <div class="modal-content" style="width: 800px; max-width: 90%;">
             <div class="modal-header" style="color: #f57c00; border-bottom: 2px solid #f57c00;">📜 ประวัติการแจ้งเตือนทั้งหมด</div>
@@ -270,14 +269,19 @@
         let voiceEnabled = true;
         let audioCtx = null;
         let autoCloseTimer = null;
-        let fetchCount = 0;
 
         function toggleVoice() {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 
-                voiceEnabled = !voiceEnabled;
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                    voiceEnabled = true;
+                } else {
+                    voiceEnabled = !voiceEnabled;
+                }
+
                 const btn = document.getElementById('voiceInitBtn');
                 btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
                 btn.classList.toggle('active', voiceEnabled);
@@ -322,7 +326,7 @@
                     const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
                     osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
                     gain.gain.setValueAtTime(0, now + i*0.3);
-                    gain.gain.linearRampToValueAtTime(0.1, now + i*0.3 + 0.05);
+                    gain.gain.linearRampToValueAtTime(0.15, now + i*0.3 + 0.05);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
                     osc.connect(gain); gain.connect(audioCtx.destination);
                     osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
@@ -352,14 +356,12 @@
                 if (!response.ok) throw new Error('Response error');
                 const data = await response.text();
                 
-                // Heartbeat blink
                 const hb = document.getElementById('heartbeat');
                 hb.style.display = 'block';
                 setTimeout(() => hb.style.display = 'none', 500);
 
                 parseCSV(data);
-                fetchCount++;
-                document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()} (ครั้งที่ ${fetchCount})`;
+                document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()}`;
             } catch (e) { 
                 document.getElementById('status-bar').innerText = `กำลังเชื่อมต่อใหม่... (${new Date().toLocaleTimeString()})`;
             }
@@ -457,26 +459,26 @@
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
         }
 
-        fetchScoreboard();
         async function showHistoryModal() {
-            document.getElementById("historyModal").style.display = "block";
+            document.getElementById('historyModal').style.display = 'block';
             try {
                 const response = await fetch(`history.log?t=${Date.now()}`);
-                if (!response.ok) throw new Error("Cannot load history");
+                if (!response.ok) throw new Error('Cannot load history');
                 const text = await response.text();
-                const contentDiv = document.getElementById("history-content");
-                contentDiv.textContent = text || "ยังไม่มีประวัติการแจ้งเตือน";
+                const contentDiv = document.getElementById('history-content');
+                contentDiv.textContent = text || 'ยังไม่มีประวัติการแจ้งเตือน';
                 contentDiv.scrollTop = contentDiv.scrollHeight;
             } catch (e) {
-                document.getElementById("history-content").textContent = "ไม่สามารถโหลดไฟล์ประวัติได้ (ระบบกำลังบันทึกข้อมูล)";
+                document.getElementById('history-content').textContent = 'ไม่สามารถโหลดไฟล์ประวัติได้ (ระบบกำลังบันทึกข้อมูล)';
             }
         }
 
         function closeHistoryModal() {
-            document.getElementById("historyModal").style.display = "none";
+            document.getElementById('historyModal').style.display = 'none';
         }
 
-        setInterval(fetchScoreboard, 1000);
+        fetchScoreboard();
+        setInterval(fetchScoreboard, 2500);
     </script>
 </body>
 </html>
