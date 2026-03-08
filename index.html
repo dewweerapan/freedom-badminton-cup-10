@@ -198,6 +198,19 @@
             cursor: pointer;
         }
         .voice-toggle.active { background-color: #fff; color: var(--primary-color); }
+        
+        .history-btn {
+            background-color: #f57c00;
+            border: 1px solid #f57c00;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .history-btn:hover { background-color: #e65100; }
+
 
         .pulse { animation: pulse-animation 2s infinite; }
         @keyframes pulse-animation { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
@@ -211,7 +224,7 @@
                 <h1>🏆 Freedom Badminton Cup #10</h1>
                 <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard (Live)</p>
             </div>
-            <button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)</button>
+            <div><button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)</button><button class="history-btn" onclick="showHistoryModal()">📜 ดูประวัติการแจ้งเตือน</button></div>
         </div>
 
         <div class="latest-match-card">
@@ -234,6 +247,17 @@
             <div class="modal-header">📢 แจ้งเตือนการอัปเดต</div>
             <div class="modal-body" id="modal-updates-list"></div>
             <button class="btn-close" onclick="closeModal()">ตกลง / ปิด</button>
+        </div>
+    </div>
+
+    <!-- Modal ดูประวัติ -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content" style="width: 800px; max-width: 90%;">
+            <div class="modal-header" style="color: #f57c00; border-bottom: 2px solid #f57c00;">📜 ประวัติการแจ้งเตือนทั้งหมด</div>
+            <div class="modal-body" id="history-content" style="background-color: #1e1e1e; color: #00ff00; padding: 20px; border-radius: 10px; font-family: monospace; font-size: 1em; white-space: pre-wrap; height: 400px; overflow-y: auto; text-align: left;">
+                กำลังโหลดประวัติ...
+            </div>
+            <button class="btn-close" style="background-color: #f57c00; margin-top: 20px;" onclick="closeHistoryModal()">ปิดหน้าต่าง</button>
         </div>
     </div>
 
@@ -434,6 +458,24 @@
         }
 
         fetchScoreboard();
+        async function showHistoryModal() {
+            document.getElementById("historyModal").style.display = "block";
+            try {
+                const response = await fetch(`history.log?t=${Date.now()}`);
+                if (!response.ok) throw new Error("Cannot load history");
+                const text = await response.text();
+                const contentDiv = document.getElementById("history-content");
+                contentDiv.textContent = text || "ยังไม่มีประวัติการแจ้งเตือน";
+                contentDiv.scrollTop = contentDiv.scrollHeight;
+            } catch (e) {
+                document.getElementById("history-content").textContent = "ไม่สามารถโหลดไฟล์ประวัติได้ (ระบบกำลังบันทึกข้อมูล)";
+            }
+        }
+
+        function closeHistoryModal() {
+            document.getElementById("historyModal").style.display = "none";
+        }
+
         setInterval(fetchScoreboard, 5000);
     </script>
 </body>
