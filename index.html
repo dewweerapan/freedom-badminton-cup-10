@@ -109,6 +109,7 @@
             display: block;
         }
         
+        /* Modal Style */
         .modal {
             display: none;
             position: fixed;
@@ -125,7 +126,7 @@
             margin: 10% auto;
             padding: 30px;
             border-radius: 25px;
-            width: 550px;
+            width: 600px;
             text-align: center;
             box-shadow: 0 15px 50px rgba(0,0,0,0.4);
             animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -147,7 +148,7 @@
             margin-bottom: 20px;
             color: #333;
             text-align: left;
-            max-height: 400px;
+            max-height: 450px;
             overflow-y: auto;
         }
         .update-item {
@@ -178,6 +179,11 @@
         .update-content {
             font-size: 1.1em;
             font-weight: bold;
+        }
+        .update-vs {
+            color: #d32f2f;
+            font-size: 0.8em;
+            margin: 0 5px;
         }
 
         .btn-close {
@@ -302,14 +308,12 @@
         }
 
         async function fetchScoreboard() {
-            // Cache busting with timestamp
             const cacheBuster = new Date().getTime();
             const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${cacheBuster}`;
             
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
-                
                 const response = await fetch(URL, { signal: controller.signal });
                 clearTimeout(timeoutId);
                 
@@ -367,8 +371,11 @@
                     if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
                         const m = currentMatches.find(x => x.court === court);
                         if (m) {
-                            updates.push({ type: 'match', content: `เริ่มแข่ง ${m.court}: แมทช์ M${m.mNo} (${m.t1} vs ${m.t2})` });
-                            ttsParts.push(`และเริ่มแข่งใน ${m.court.replace('Court ', 'สนาม ')} แมทช์ที่ ${m.mNo} ค่ะ`);
+                            updates.push({ 
+                                type: 'match', 
+                                content: `เริ่มแข่ง ${m.court}: M${m.mNo} <br> <span style="font-size:0.9em; font-weight:normal;">(${m.t1} vs ${m.t2})</span>` 
+                            });
+                            ttsParts.push(`และเริ่มแข่งใน ${m.court.replace('Court ', 'สนาม ')} แมทช์ที่ ${m.mNo} ระหว่างทีม ${m.t1} กับทีม ${m.t2} ค่ะ`);
                         }
                     }
                 });
@@ -410,10 +417,11 @@
             content.innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
         }
 
+        let autoCloseTimer = null;
         function showModal() {
             document.getElementById('updateModal').style.display = 'block';
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
-            autoCloseTimer = setTimeout(closeModal, 5000);
+            autoCloseTimer = setTimeout(closeModal, 10000); // เพิ่มเวลาเป็น 10 วิเพราะข้อมูลเยอะขึ้น
         }
 
         function closeModal() {
@@ -421,7 +429,6 @@
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
         }
 
-        // Initial call and interval
         fetchScoreboard();
         setInterval(fetchScoreboard, 5000);
     </script>
