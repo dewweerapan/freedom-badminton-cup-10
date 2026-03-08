@@ -33,7 +33,22 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
+        
+        /* Heartbeat Indicator */
+        .heartbeat {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            background-color: #00ff00;
+            border-radius: 50%;
+            display: none;
+        }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+
         h1 { margin: 0; font-size: 1.8em; }
 
         .latest-match-card {
@@ -109,7 +124,6 @@
             display: block;
         }
         
-        /* Modal Style */
         .modal {
             display: none;
             position: fixed;
@@ -131,10 +145,7 @@
             box-shadow: 0 15px 50px rgba(0,0,0,0.4);
             animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        @keyframes slideIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
+        @keyframes slideIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .modal-header {
             color: var(--primary-color);
             font-size: 1.6em;
@@ -159,32 +170,12 @@
             border: 1px solid #eee;
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
-        .update-item.calling {
-            border-left: 6px solid var(--accent-color);
-            background-color: #fffef2;
-        }
-        .update-item.match {
-            border-left: 6px solid var(--primary-color);
-            background-color: #f9fff9;
-        }
-        .update-label {
-            font-size: 0.85em;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
+        .update-item.calling { border-left: 6px solid var(--accent-color); background-color: #fffef2; }
+        .update-item.match { border-left: 6px solid var(--primary-color); background-color: #f9fff9; }
+        .update-label { font-size: 0.85em; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
         .update-label.calling { color: var(--accent-color); }
         .update-label.match { color: var(--primary-color); }
-        
-        .update-content {
-            font-size: 1.1em;
-            font-weight: bold;
-        }
-        .update-vs {
-            color: #d32f2f;
-            font-size: 0.8em;
-            margin: 0 5px;
-        }
+        .update-content { font-size: 1.1em; font-weight: bold; }
 
         .btn-close {
             background-color: var(--primary-color);
@@ -215,6 +206,7 @@
 <body>
     <div class="container">
         <div class="header">
+            <div id="heartbeat" class="heartbeat"></div>
             <div>
                 <h1>🏆 Freedom Badminton Cup #10</h1>
                 <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard (Live)</p>
@@ -257,27 +249,42 @@
         let fetchCount = 0;
 
         function toggleVoice() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            voiceEnabled = !voiceEnabled;
-            const btn = document.getElementById('voiceInitBtn');
-            btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
-            btn.classList.toggle('active', voiceEnabled);
-            
-            if (voiceEnabled) {
-                playChime();
-                announceCurrentStatus();
-            }
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                voiceEnabled = !voiceEnabled;
+                const btn = document.getElementById('voiceInitBtn');
+                btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
+                btn.classList.toggle('active', voiceEnabled);
+                
+                if (voiceEnabled) {
+                    playChime();
+                    announceCurrentStatus();
+                }
+            } catch(e) { console.error("Toggle voice error", e); }
         }
 
         function announceCurrentStatus() {
-            const matchRows = Array.from(document.querySelectorAll('#scoreboard-content tr')).slice(1);
+            const mRows = document.querySelectorAll('#scoreboard-content tr');
+            if (mRows.length < 2) {
+                speakAnnouncement("ระบบเสียงเปิดอยู่ค่ะ ขณะนี้ยังไม่มีข้อมูลแมทช์ในสนาม");
+                return;
+            }
+            
             let latestM = null, maxM = -1;
-            matchRows.forEach(r => {
-                const n = parseInt(r.querySelector('.match-no').innerText);
-                if (!isNaN(n) && n > maxM) { maxM = n; latestM = {n, c: r.querySelector('.court-badge').innerText}; }
+            Array.from(mRows).slice(1).forEach(r => {
+                const nSpan = r.querySelector('.match-no');
+                if (nSpan) {
+                    const n = parseInt(nSpan.innerText);
+                    if (!isNaN(n) && n > maxM) { 
+                        maxM = n; 
+                        const cBadge = r.querySelector('.court-badge');
+                        latestM = {n, c: cBadge ? cBadge.innerText : ''}; 
+                    }
+                }
             });
+            
             let txt = `ระบบเสียงเปิดอยู่ค่ะ `;
             if (latestM) txt += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestM.n} ที่ ${latestM.c.replace('Court ', 'สนาม ')} ค่ะ`;
             setTimeout(() => speakAnnouncement(txt), 800);
@@ -291,119 +298,118 @@
                     const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
                     osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
                     gain.gain.setValueAtTime(0, now + i*0.3);
-                    gain.gain.linearRampToValueAtTime(0.15, now + i*0.3 + 0.05);
+                    gain.gain.linearRampToValueAtTime(0.1, now + i*0.3 + 0.05);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
                     osc.connect(gain); gain.connect(audioCtx.destination);
                     osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
                 });
-            } catch(e) { console.error("Audio error", e); }
+            } catch(e) {}
         }
 
         function speakAnnouncement(text) {
-            if (!voiceEnabled) return;
-            window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.lang = 'th-TH'; msg.rate = 1.0;
-            window.speechSynthesis.speak(msg);
+            if (!voiceEnabled || !window.speechSynthesis) return;
+            try {
+                window.speechSynthesis.cancel();
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'th-TH'; msg.rate = 1.0;
+                window.speechSynthesis.speak(msg);
+            } catch(e) {}
         }
 
         async function fetchScoreboard() {
-            const cacheBuster = new Date().getTime();
-            const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${cacheBuster}`;
+            const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${Date.now()}`;
             
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const tid = setTimeout(() => controller.abort(), 10000);
                 const response = await fetch(URL, { signal: controller.signal });
-                clearTimeout(timeoutId);
+                clearTimeout(tid);
                 
-                if (!response.ok) throw new Error('Network response was not ok');
-                
+                if (!response.ok) throw new Error('Response error');
                 const data = await response.text();
+                
+                // Heartbeat blink
+                const hb = document.getElementById('heartbeat');
+                hb.style.display = 'block';
+                setTimeout(() => hb.style.display = 'none', 500);
+
                 parseCSV(data);
                 fetchCount++;
                 document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()} (ครั้งที่ ${fetchCount})`;
             } catch (e) { 
-                console.error("Fetch failed", e);
-                document.getElementById('status-bar').innerText = `การเชื่อมต่อขัดข้อง กำลังลองใหม่... (${new Date().toLocaleTimeString()})`;
+                document.getElementById('status-bar').innerText = `กำลังเชื่อมต่อใหม่... (${new Date().toLocaleTimeString()})`;
             }
         }
 
         function parseCSV(csvText) {
-            if (!csvText || csvText.length < 10) return;
+            if (!csvText || csvText.length < 20) return;
             
-            const rows = csvText.split('\n').map(row => 
-                row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim())
-            );
+            try {
+                const rows = csvText.split('\n').map(row => 
+                    row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim())
+                );
 
-            let currentCalling = null;
-            const callingRow = rows.find(r => r.some(c => c.includes('Match No. calling now')));
-            if (callingRow) {
-                const val = callingRow.find(c => c !== '' && !isNaN(parseInt(c)));
-                if (val) currentCalling = parseInt(val);
-            }
-
-            let currentMatches = [];
-            let currentMatchMap = new Map();
-            for (let i = 0; i < rows.length; i++) {
-                if (rows[i].some(c => c && c.includes('Court'))) {
-                    const court = rows[i].find(c => c.includes('Court'));
-                    const dataRow = rows[i+2];
-                    if (dataRow && dataRow[2] && !isNaN(parseInt(dataRow[2]))) {
-                        const mNo = dataRow[2], t1 = dataRow[3], t2 = dataRow[7], p1 = dataRow[4], p2 = dataRow[8];
-                        currentMatches.push({court, mNo, t1, t2, p1, p2, type: rows[i][3], round: `${rows[i][4]} ${rows[i][5]}`});
-                        currentMatchMap.set(court, mNo);
-                    }
-                }
-            }
-
-            if (lastCalling !== null) {
-                let updates = [];
-                let ttsParts = ["แจ้งเตือนค่ะ"];
-
-                if (currentCalling > lastCalling) {
-                    const range = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} - ${currentCalling}`;
-                    updates.push({ type: 'calling', content: `เรียกแมทช์ใหม่ลำดับที่: ${range}` });
-                    ttsParts.push(`มีการเรียกแมทช์ใหม่ลำดับที่ ${range.replace('-', 'ถึง')}`);
+                let currentCalling = null;
+                const callingRow = rows.find(r => r.some(c => c && c.includes('Match No. calling now')));
+                if (callingRow) {
+                    const val = callingRow.find(c => c !== '' && !isNaN(parseInt(c)));
+                    if (val) currentCalling = parseInt(val);
                 }
 
-                currentMatchMap.forEach((mNo, court) => {
-                    if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
-                        const m = currentMatches.find(x => x.court === court);
-                        if (m) {
-                            updates.push({ 
-                                type: 'match', 
-                                content: `เริ่มแข่ง ${m.court}: M${m.mNo} <br> <span style="font-size:0.9em; font-weight:normal;">(${m.t1} vs ${m.t2})</span>` 
-                            });
-                            ttsParts.push(`และเริ่มแข่งใน ${m.court.replace('Court ', 'สนาม ')} แมทช์ที่ ${m.mNo} ระหว่างทีม ${m.t1} กับทีม ${m.t2} ค่ะ`);
+                let currentMatches = [];
+                let currentMatchMap = new Map();
+                for (let i = 0; i < rows.length; i++) {
+                    if (rows[i].some(c => c && c.includes('Court'))) {
+                        const court = rows[i].find(c => c && c.includes('Court'));
+                        const dataRow = rows[i+2];
+                        if (dataRow && dataRow.length > 7 && dataRow[2] && !isNaN(parseInt(dataRow[2]))) {
+                            const mNo = dataRow[2], t1 = dataRow[3], t2 = dataRow[7], p1 = dataRow[4]||'', p2 = dataRow[8]||'';
+                            currentMatches.push({court, mNo, t1, t2, p1, p2, type: rows[i][3]||'', round: `${rows[i][4]||''} ${rows[i][5]||''}`});
+                            currentMatchMap.set(court, mNo);
                         }
                     }
-                });
+                }
 
-                if (updates.length > 0) handleNotification(updates, ttsParts.join(' '));
-            }
+                if (lastCalling !== null) {
+                    let updates = [];
+                    let ttsParts = ["แจ้งเตือนค่ะ"];
 
-            lastCalling = currentCalling;
-            lastMatchMap = currentMatchMap;
-            document.getElementById('latest-match-id').innerText = currentCalling || '--';
-            renderTable(currentMatches);
+                    if (currentCalling > lastCalling) {
+                        const range = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} ถึง ${currentCalling}`;
+                        updates.push({ type: 'calling', content: `เรียกแมทช์ใหม่ลำดับที่: ${range.replace('ถึง', '-')}` });
+                        ttsParts.push(`มีการเรียกแมทช์ใหม่ลำดับที่ ${range}`);
+                    }
+
+                    currentMatchMap.forEach((mNo, court) => {
+                        if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
+                            const m = currentMatches.find(x => x.court === court);
+                            if (m) {
+                                updates.push({ type: 'match', content: `เริ่มแข่ง ${m.court}: M${m.mNo} <br><small>(${m.t1} vs ${m.t2})</small>` });
+                                ttsParts.push(`เริ่มแข่งใน ${m.court.replace('Court ', 'สนาม ')} แมทช์ที่ ${m.mNo} ระหว่างทีม ${m.t1} กับทีม ${m.t2}`);
+                            }
+                        }
+                    });
+
+                    if (updates.length > 0) handleNotification(updates, ttsParts.join(' '));
+                }
+
+                lastCalling = currentCalling;
+                lastMatchMap = currentMatchMap;
+                document.getElementById('latest-match-id').innerText = currentCalling || '--';
+                renderTable(currentMatches);
+            } catch(e) { console.error("Parse Error", e); }
         }
 
         function handleNotification(updates, ttsText) {
             playChime();
             const listContainer = document.getElementById('modal-updates-list');
             listContainer.innerHTML = '';
-            
             updates.forEach(upd => {
                 const div = document.createElement('div');
                 div.className = `update-item ${upd.type}`;
-                div.innerHTML = `
-                    <div class="update-label ${upd.type}">${upd.type === 'calling' ? '📣 NEW CALLING' : '📍 NEW MATCH STARTED'}</div>
-                    <div class="update-content">${upd.content}</div>
-                `;
+                div.innerHTML = `<div class="update-label ${upd.type}">${upd.type==='calling'?'📣 NEW CALLING':'📍 NEW MATCH STARTED'}</div><div class="update-content">${upd.content}</div>`;
                 listContainer.appendChild(div);
             });
-
             setTimeout(() => speakAnnouncement(ttsText), 1000);
             showModal();
         }
@@ -413,15 +419,13 @@
             matches.forEach(m => {
                 html += `<tr><td align="center"><span class="court-badge">${m.court}</span></td><td align="center" class="match-no">${m.mNo}</td><td align="center"><strong>${m.type}</strong><br><small>${m.round}</small></td><td><strong>${m.t1}</strong> <small>${m.p1}</small><span class="vs-label">VS</span><strong>${m.t2}</strong> <small>${m.p2}</small></td></tr>`;
             });
-            const content = document.getElementById('scoreboard-content');
-            content.innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
+            document.getElementById('scoreboard-content').innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
         }
 
-        let autoCloseTimer = null;
         function showModal() {
             document.getElementById('updateModal').style.display = 'block';
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
-            autoCloseTimer = setTimeout(closeModal, 10000); // เพิ่มเวลาเป็น 10 วิเพราะข้อมูลเยอะขึ้น
+            autoCloseTimer = setTimeout(closeModal, 12000);
         }
 
         function closeModal() {
