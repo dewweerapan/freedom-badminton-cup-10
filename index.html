@@ -109,7 +109,6 @@
             display: block;
         }
         
-        /* Modal Style */
         .modal {
             display: none;
             position: fixed;
@@ -212,9 +211,9 @@
         <div class="header">
             <div>
                 <h1>🏆 Freedom Badminton Cup #10</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard</p>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard (Live)</p>
             </div>
-            <button id="voiceInitBtn" class="voice-toggle" onclick="toggleVoice()">🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน</button>
+            <button id="voiceInitBtn" class="voice-toggle active" onclick="toggleVoice()">🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)</button>
         </div>
 
         <div class="latest-match-card">
@@ -223,7 +222,7 @@
                 <div id="latest-match-id" class="latest-match-number pulse">--</div>
             </div>
             <div style="text-align: right;">
-                <div class="status-bar" id="status-bar">กำลังโหลด...</div>
+                <div class="status-bar" id="status-bar">กำลังโหลดข้อมูล...</div>
             </div>
         </div>
         
@@ -232,13 +231,10 @@
         </div>
     </div>
 
-    <!-- Modal แจ้งเตือนรายการอัปเดต -->
     <div id="updateModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">📢 แจ้งเตือนการอัปเดต</div>
-            <div class="modal-body" id="modal-updates-list">
-                <!-- รายการจะถูกเพิ่มที่นี่ -->
-            </div>
+            <div class="modal-body" id="modal-updates-list"></div>
             <button class="btn-close" onclick="closeModal()">ตกลง / ปิด</button>
         </div>
     </div>
@@ -246,48 +242,55 @@
     <script>
         const SHEET_ID = '1WSlG4dMl39jGv1QR54Ee5bRi65C9dEaZqZxAM8xZXg8';
         const SHEET_NAME = 'Monitoring';
-        const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
-
+        
         let lastCalling = null;
         let lastMatchMap = new Map();
-        let voiceEnabled = false;
+        let voiceEnabled = true;
         let audioCtx = null;
         let autoCloseTimer = null;
+        let fetchCount = 0;
 
         function toggleVoice() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
             voiceEnabled = !voiceEnabled;
             const btn = document.getElementById('voiceInitBtn');
-            btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
+            btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว (คลิกเพื่อปิด)" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
             btn.classList.toggle('active', voiceEnabled);
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
             if (voiceEnabled) {
                 playChime();
-                const calling = document.getElementById('latest-match-id').innerText;
-                const matchRows = Array.from(document.querySelectorAll('#scoreboard-content tr')).slice(1);
-                let latestM = null, maxM = -1;
-                matchRows.forEach(r => {
-                    const n = parseInt(r.querySelector('.match-no').innerText);
-                    if (n > maxM) { maxM = n; latestM = {n, c: r.querySelector('.court-badge').innerText}; }
-                });
-                let txt = `เปิดระบบเสียงเรียบร้อยค่ะ `;
-                if (latestM) txt += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestM.n} ที่ ${latestM.c.replace('Court ', 'สนาม ')} ค่ะ`;
-                setTimeout(() => speakAnnouncement(txt), 800);
+                announceCurrentStatus();
             }
+        }
+
+        function announceCurrentStatus() {
+            const matchRows = Array.from(document.querySelectorAll('#scoreboard-content tr')).slice(1);
+            let latestM = null, maxM = -1;
+            matchRows.forEach(r => {
+                const n = parseInt(r.querySelector('.match-no').innerText);
+                if (!isNaN(n) && n > maxM) { maxM = n; latestM = {n, c: r.querySelector('.court-badge').innerText}; }
+            });
+            let txt = `ระบบเสียงเปิดอยู่ค่ะ `;
+            if (latestM) txt += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestM.n} ที่ ${latestM.c.replace('Court ', 'สนาม ')} ค่ะ`;
+            setTimeout(() => speakAnnouncement(txt), 800);
         }
 
         function playChime() {
             if (!voiceEnabled || !audioCtx) return;
-            const now = audioCtx.currentTime;
-            [659, 523].forEach((f, i) => {
-                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-                osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
-                gain.gain.setValueAtTime(0, now + i*0.3);
-                gain.gain.linearRampToValueAtTime(0.15, now + i*0.3 + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
-            });
+            try {
+                const now = audioCtx.currentTime;
+                [659, 523].forEach((f, i) => {
+                    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                    osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
+                    gain.gain.setValueAtTime(0, now + i*0.3);
+                    gain.gain.linearRampToValueAtTime(0.15, now + i*0.3 + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
+                });
+            } catch(e) { console.error("Audio error", e); }
         }
 
         function speakAnnouncement(text) {
@@ -299,15 +302,32 @@
         }
 
         async function fetchScoreboard() {
+            // Cache busting with timestamp
+            const cacheBuster = new Date().getTime();
+            const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}&t=${cacheBuster}`;
+            
             try {
-                const response = await fetch(URL);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                const response = await fetch(URL, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                
                 const data = await response.text();
                 parseCSV(data);
-                document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()} (เช็คทุก 5 วินาที)`;
-            } catch (e) { console.error(e); }
+                fetchCount++;
+                document.getElementById('status-bar').innerText = `อัปเดต: ${new Date().toLocaleTimeString()} (ครั้งที่ ${fetchCount})`;
+            } catch (e) { 
+                console.error("Fetch failed", e);
+                document.getElementById('status-bar').innerText = `การเชื่อมต่อขัดข้อง กำลังลองใหม่... (${new Date().toLocaleTimeString()})`;
+            }
         }
 
         function parseCSV(csvText) {
+            if (!csvText || csvText.length < 10) return;
+            
             const rows = csvText.split('\n').map(row => 
                 row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim())
             );
@@ -322,7 +342,7 @@
             let currentMatches = [];
             let currentMatchMap = new Map();
             for (let i = 0; i < rows.length; i++) {
-                if (rows[i].some(c => c.includes('Court'))) {
+                if (rows[i].some(c => c && c.includes('Court'))) {
                     const court = rows[i].find(c => c.includes('Court'));
                     const dataRow = rows[i+2];
                     if (dataRow && dataRow[2] && !isNaN(parseInt(dataRow[2]))) {
@@ -333,19 +353,16 @@
                 }
             }
 
-            // ตรวจสอบการเปลี่ยนแปลงเพื่อแจ้งเตือน
             if (lastCalling !== null) {
                 let updates = [];
                 let ttsParts = ["แจ้งเตือนค่ะ"];
 
-                // 1. ตรวจสอบการเรียกแมทช์ใหม่
                 if (currentCalling > lastCalling) {
                     const range = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} - ${currentCalling}`;
                     updates.push({ type: 'calling', content: `เรียกแมทช์ใหม่ลำดับที่: ${range}` });
                     ttsParts.push(`มีการเรียกแมทช์ใหม่ลำดับที่ ${range.replace('-', 'ถึง')}`);
                 }
 
-                // 2. ตรวจสอบแมทช์ใหม่ในสนาม
                 currentMatchMap.forEach((mNo, court) => {
                     if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
                         const m = currentMatches.find(x => x.court === court);
@@ -356,9 +373,7 @@
                     }
                 });
 
-                if (updates.length > 0) {
-                    handleNotification(updates, ttsParts.join(' '));
-                }
+                if (updates.length > 0) handleNotification(updates, ttsParts.join(' '));
             }
 
             lastCalling = currentCalling;
@@ -391,7 +406,8 @@
             matches.forEach(m => {
                 html += `<tr><td align="center"><span class="court-badge">${m.court}</span></td><td align="center" class="match-no">${m.mNo}</td><td align="center"><strong>${m.type}</strong><br><small>${m.round}</small></td><td><strong>${m.t1}</strong> <small>${m.p1}</small><span class="vs-label">VS</span><strong>${m.t2}</strong> <small>${m.p2}</small></td></tr>`;
             });
-            document.getElementById('scoreboard-content').innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
+            const content = document.getElementById('scoreboard-content');
+            content.innerHTML = matches.length > 0 ? html + '</tbody></table>' : '<div style="padding:40px; color:#999;">ไม่มีแมทช์ในสนาม</div>';
         }
 
         function showModal() {
@@ -405,6 +421,7 @@
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
         }
 
+        // Initial call and interval
         fetchScoreboard();
         setInterval(fetchScoreboard, 5000);
     </script>
