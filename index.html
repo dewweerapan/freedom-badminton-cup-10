@@ -109,6 +109,7 @@
             display: block;
         }
         
+        /* Modal Style */
         .modal {
             display: none;
             position: fixed;
@@ -125,7 +126,7 @@
             margin: 10% auto;
             padding: 30px;
             border-radius: 25px;
-            width: 500px;
+            width: 550px;
             text-align: center;
             box-shadow: 0 15px 50px rgba(0,0,0,0.4);
             animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -139,31 +140,47 @@
             font-size: 1.6em;
             font-weight: bold;
             margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
         .modal-body {
             font-size: 1.1em;
             margin-bottom: 20px;
             color: #333;
             text-align: left;
+            max-height: 400px;
+            overflow-y: auto;
         }
-        .highlight-range {
-            font-size: 2.2em;
-            color: var(--accent-color);
+        .update-item {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+        .update-item.calling {
+            border-left: 6px solid var(--accent-color);
+            background-color: #fffef2;
+        }
+        .update-item.match {
+            border-left: 6px solid var(--primary-color);
+            background-color: #f9fff9;
+        }
+        .update-label {
+            font-size: 0.85em;
             font-weight: bold;
-            display: block;
-            text-align: center;
-            margin: 10px 0;
-            border-bottom: 2px dashed #eee;
-            padding-bottom: 10px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
         }
-        .new-match-item {
-            background-color: #f1f8e9;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border-left: 4px solid var(--primary-color);
-            font-size: 0.95em;
+        .update-label.calling { color: var(--accent-color); }
+        .update-label.match { color: var(--primary-color); }
+        
+        .update-content {
+            font-size: 1.1em;
+            font-weight: bold;
         }
+
         .btn-close {
             background-color: var(--primary-color);
             color: white;
@@ -174,7 +191,6 @@
             cursor: pointer;
             font-weight: bold;
             width: 100%;
-            margin-top: 10px;
         }
 
         .voice-toggle {
@@ -196,7 +212,7 @@
         <div class="header">
             <div>
                 <h1>🏆 Freedom Badminton Cup #10</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">ระบบติดตามผลการแข่งขัน Live</p>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">Real-time Scoreboard</p>
             </div>
             <button id="voiceInitBtn" class="voice-toggle" onclick="toggleVoice()">🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน</button>
         </div>
@@ -207,7 +223,7 @@
                 <div id="latest-match-id" class="latest-match-number pulse">--</div>
             </div>
             <div style="text-align: right;">
-                <div class="status-bar" id="status-bar">กำลังโหลดข้อมูล...</div>
+                <div class="status-bar" id="status-bar">กำลังโหลด...</div>
             </div>
         </div>
         
@@ -216,20 +232,14 @@
         </div>
     </div>
 
-    <!-- Modal แจ้งเตือนอัจฉริยะ -->
+    <!-- Modal แจ้งเตือนรายการอัปเดต -->
     <div id="updateModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">📢 ข้อมูลมีการเปลี่ยนแปลง!</div>
-            <div class="modal-body">
-                <div style="text-align:center; color:#666; font-size:0.9em;">ลำดับแมทช์ที่เรียก:</div>
-                <span id="modal-match-range" class="highlight-range">--</span>
-                
-                <div id="new-matches-section" style="display:none;">
-                    <div style="font-weight:bold; margin-bottom:10px; color:#2e7d32;">📍 แมทช์ที่เริ่มใหม่ในสนาม:</div>
-                    <div id="new-matches-list"></div>
-                </div>
+            <div class="modal-header">📢 แจ้งเตือนการอัปเดต</div>
+            <div class="modal-body" id="modal-updates-list">
+                <!-- รายการจะถูกเพิ่มที่นี่ -->
             </div>
-            <button class="btn-close" onclick="closeModal()">รับทราบ</button>
+            <button class="btn-close" onclick="closeModal()">ตกลง / ปิด</button>
         </div>
     </div>
 
@@ -239,7 +249,7 @@
         const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
 
         let lastCalling = null;
-        let lastMatchMap = new Map(); // Court -> MatchNo
+        let lastMatchMap = new Map();
         let voiceEnabled = false;
         let audioCtx = null;
         let autoCloseTimer = null;
@@ -249,38 +259,20 @@
             const btn = document.getElementById('voiceInitBtn');
             btn.innerText = voiceEnabled ? "🔊 เปิดเสียงแจ้งเตือนแล้ว" : "🔇 คลิกเพื่อเปิดเสียงแจ้งเตือน";
             btn.classList.toggle('active', voiceEnabled);
-            
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
             if (voiceEnabled) {
                 playChime();
-                
-                const currentCalling = document.getElementById('latest-match-id').innerText;
-                
-                // ค้นหาแมทช์ที่มีเลขสูงสุดในตาราง (แมทช์ที่ลงสนามล่าสุด)
+                const calling = document.getElementById('latest-match-id').innerText;
                 const matchRows = Array.from(document.querySelectorAll('#scoreboard-content tr')).slice(1);
-                let latestMatchInTable = null;
-                let maxMNo = -1;
-
-                matchRows.forEach(row => {
-                    const mNo = parseInt(row.querySelector('.match-no').innerText);
-                    if (mNo > maxMNo) {
-                        maxMNo = mNo;
-                        latestMatchInTable = {
-                            no: mNo,
-                            court: row.querySelector('.court-badge').innerText
-                        };
-                    }
+                let latestM = null, maxM = -1;
+                matchRows.forEach(r => {
+                    const n = parseInt(r.querySelector('.match-no').innerText);
+                    if (n > maxM) { maxM = n; latestM = {n, c: r.querySelector('.court-badge').innerText}; }
                 });
-                
-                let testText = `เปิดระบบเสียงเรียบร้อยค่ะ `;
-                if (latestMatchInTable) {
-                    testText += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestMatchInTable.no} ที่ ${latestMatchInTable.court.replace('Court ', 'สนาม ')} ค่ะ`;
-                } else {
-                    testText += `ขณะนี้ยังไม่มีแมทช์กำลังแข่งขันค่ะ`;
-                }
-                
-                setTimeout(() => speakAnnouncement(testText), 800);
+                let txt = `เปิดระบบเสียงเรียบร้อยค่ะ `;
+                if (latestM) txt += `แมทช์ล่าสุด คือ แมทช์ที่ ${latestM.n} ที่ ${latestM.c.replace('Court ', 'สนาม ')} ค่ะ`;
+                setTimeout(() => speakAnnouncement(txt), 800);
             }
         }
 
@@ -291,7 +283,7 @@
                 const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
                 osc.type = "triangle"; osc.frequency.setValueAtTime(f, now + i*0.3);
                 gain.gain.setValueAtTime(0, now + i*0.3);
-                gain.gain.linearRampToValueAtTime(0.2, now + i*0.3 + 0.05);
+                gain.gain.linearRampToValueAtTime(0.15, now + i*0.3 + 0.05);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.3 + 0.5);
                 osc.connect(gain); gain.connect(audioCtx.destination);
                 osc.start(now + i*0.3); osc.stop(now + i*0.3 + 0.5);
@@ -320,7 +312,6 @@
                 row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/"/g, '').trim())
             );
 
-            // 1. ดึงเลขที่เรียกปัจจุบัน
             let currentCalling = null;
             const callingRow = rows.find(r => r.some(c => c.includes('Match No. calling now')));
             if (callingRow) {
@@ -328,7 +319,6 @@
                 if (val) currentCalling = parseInt(val);
             }
 
-            // 2. ดึงแมทช์ในสนามปัจจุบัน
             let currentMatches = [];
             let currentMatchMap = new Map();
             for (let i = 0; i < rows.length; i++) {
@@ -343,69 +333,55 @@
                 }
             }
 
-            // 3. ตรวจสอบการเปลี่ยนแปลง
-            let isSignificantChange = false;
-            let newCallingRange = "";
-            let newlyStarted = [];
-
+            // ตรวจสอบการเปลี่ยนแปลงเพื่อแจ้งเตือน
             if (lastCalling !== null) {
+                let updates = [];
+                let ttsParts = ["แจ้งเตือนค่ะ"];
+
+                // 1. ตรวจสอบการเรียกแมทช์ใหม่
                 if (currentCalling > lastCalling) {
-                    isSignificantChange = true;
-                    newCallingRange = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} - ${currentCalling}`;
+                    const range = (currentCalling === lastCalling + 1) ? `${currentCalling}` : `${lastCalling + 1} - ${currentCalling}`;
+                    updates.push({ type: 'calling', content: `เรียกแมทช์ใหม่ลำดับที่: ${range}` });
+                    ttsParts.push(`มีการเรียกแมทช์ใหม่ลำดับที่ ${range.replace('-', 'ถึง')}`);
                 }
-                
+
+                // 2. ตรวจสอบแมทช์ใหม่ในสนาม
                 currentMatchMap.forEach((mNo, court) => {
                     if (!lastMatchMap.has(court) || lastMatchMap.get(court) !== mNo) {
-                        const matchInfo = currentMatches.find(m => m.court === court);
-                        if (matchInfo) {
-                            newlyStarted.push(matchInfo);
-                            isSignificantChange = true;
+                        const m = currentMatches.find(x => x.court === court);
+                        if (m) {
+                            updates.push({ type: 'match', content: `เริ่มแข่ง ${m.court}: แมทช์ M${m.mNo} (${m.t1} vs ${m.t2})` });
+                            ttsParts.push(`และเริ่มแข่งใน ${m.court.replace('Court ', 'สนาม ')} แมทช์ที่ ${m.mNo} ค่ะ`);
                         }
                     }
                 });
+
+                if (updates.length > 0) {
+                    handleNotification(updates, ttsParts.join(' '));
+                }
             }
 
-            if (isSignificantChange) {
-                handleNotification(newCallingRange, newlyStarted);
-            }
-
-            // อัปเดตสถานะล่าสุด
             lastCalling = currentCalling;
             lastMatchMap = currentMatchMap;
             document.getElementById('latest-match-id').innerText = currentCalling || '--';
-
-            // วาดตาราง
             renderTable(currentMatches);
         }
 
-        function handleNotification(range, newMatches) {
+        function handleNotification(updates, ttsText) {
             playChime();
-            
-            let modalRange = range || `${lastCalling}`;
-            let ttsText = `แจ้งเตือนค่ะ `;
-            if (range) ttsText += `มีการเรียกแมทช์ใหม่ลำดับที่ ${range.replace('-', 'ถึง')} `;
-            
-            const listContainer = document.getElementById('new-matches-list');
-            const section = document.getElementById('new-matches-section');
+            const listContainer = document.getElementById('modal-updates-list');
             listContainer.innerHTML = '';
             
-            if (newMatches.length > 0) {
-                section.style.display = 'block';
-                ttsText += `และเริ่มแข่งในสนาม `;
-                newMatches.forEach((m, idx) => {
-                    const div = document.createElement('div');
-                    div.className = 'new-match-item';
-                    div.innerHTML = `<strong>${m.court}</strong>: M${m.mNo} (${m.t1} vs ${m.t2})`;
-                    listContainer.appendChild(div);
-                    ttsText += `${m.court.replace('Court ', '')} `;
-                });
-                ttsText += `ค่ะ`;
-            } else {
-                section.style.display = 'none';
-                ttsText += `ค่ะ`;
-            }
+            updates.forEach(upd => {
+                const div = document.createElement('div');
+                div.className = `update-item ${upd.type}`;
+                div.innerHTML = `
+                    <div class="update-label ${upd.type}">${upd.type === 'calling' ? '📣 NEW CALLING' : '📍 NEW MATCH STARTED'}</div>
+                    <div class="update-content">${upd.content}</div>
+                `;
+                listContainer.appendChild(div);
+            });
 
-            document.getElementById('modal-match-range').innerText = modalRange;
             setTimeout(() => speakAnnouncement(ttsText), 1000);
             showModal();
         }
